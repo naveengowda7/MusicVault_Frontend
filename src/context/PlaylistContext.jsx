@@ -15,14 +15,17 @@ export const PlaylistProvider = ({ children }) => {
     setError("");
 
     try {
-      const response = await fetch("https://musicvault-service-spotify.onrender.com/api/playlist/my", {
-        method: "GET",
-        mode: "cors",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        "https://musicvault-service1-playlist.onrender.com/api/playlist/my",
+        {
+          method: "GET",
+          mode: "cors",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
       if (!response.ok) throw new Error("Failed to fetch My Playlist");
       let data = await response.json();
       data = extractPlaylist(data);
@@ -40,7 +43,7 @@ export const PlaylistProvider = ({ children }) => {
 
     try {
       const response = await fetch(
-        `https://musicvault-service-spotify.onrender.com/api/playlist/${playlistId}`,
+        `https://musicvault-service1-playlist.onrender.com/api/playlist/${playlistId}`,
         {
           method: "GET",
           mode: "cors",

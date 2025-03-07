@@ -14,8 +14,9 @@ export const AuthProvider = ({ children }) => {
   const [authData, setAuthData] = useState(initialState);
 
   const login = () => {
+    console.log("Login function triggered");
     window.location.href =
-      "https://musicvault-service-spotify.onrender.com/auth/login";
+      "https://musicvault-service1-playlist.onrender.com/auth/login";
   };
 
   return (
