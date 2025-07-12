@@ -28,10 +28,10 @@ export const PlaylistProvider = ({ children }) => {
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error("Not authenticated. Please login first.");
+          throw new Error("Session expired. Please login again.");
         }
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to fetch My Playlist");
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to fetch My Playlist");
       }
 
       let data = await response.json();
@@ -63,10 +63,10 @@ export const PlaylistProvider = ({ children }) => {
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error("Not authenticated. Please login first.");
+          throw new Error("Session expired. Please login again.");
         }
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to fetch Other Playlist");
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to fetch Other Playlist");
       }
 
       let data = await response.json();

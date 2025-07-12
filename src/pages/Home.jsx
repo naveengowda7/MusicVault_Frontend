@@ -1,9 +1,14 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 
 const Home = () => {
-  const { authData } = useContext(AuthContext);
+  const { authData, checkAuthStatus } = useContext(AuthContext);
+
+  useEffect(() => {
+    // Check auth status when component mounts
+    checkAuthStatus();
+  }, []);
 
   return (
     <div className="main-content">
@@ -35,7 +40,7 @@ const Home = () => {
         </div>
         <p className="lighter-text">
           <span>Free </span>
-          ,download your spotify songs,playlists in high quality
+          download your spotify songs, playlists in high quality
         </p>
       </div>
     </div>
