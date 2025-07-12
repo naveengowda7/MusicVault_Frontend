@@ -5,10 +5,13 @@ export const YoutubeContext = createContext();
 export const YoutubeProvider = ({ children }) => {
   const [youtubeLinks, setYoutubeLinks] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [processedIds, setProcessedIds] = useState([]); // Add this state
 
   const postSongsName = async (songNames) => {
     setLoading(true);
     try {
+      console.log("Posting songs:", songNames);
+
       const response = await fetch(
         "https://musicvault-service1-youtube.onrender.com/api/youtube/video",
         {
@@ -21,11 +24,17 @@ export const YoutubeProvider = ({ children }) => {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to fetch YouTube IDs");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch YouTube IDs");
       }
 
       const data = await response.json();
-      // Assuming YouTube service returns { videoUrl: [...] }, pass to download service
+      console.log("YouTube API response:", data);
+
+      // Store video URLs temporarily
+      setYoutubeLinks(data.videoUrl || []);
+
+      // Process the links with download service
       const processResponse = await fetch(
         "https://musicvault-service-download.onrender.com/api/process",
         {
@@ -38,11 +47,17 @@ export const YoutubeProvider = ({ children }) => {
       );
 
       if (!processResponse.ok) {
-        throw new Error("Failed to process YouTube links");
+        const errorData = await processResponse.json();
+        throw new Error(errorData.message || "Failed to process YouTube links");
       }
 
       const processData = await processResponse.json();
-      setYoutubeLinks(processData.ids || []); // Store MongoDB _ids
+      console.log("Process API response:", processData);
+
+      // Store the processed IDs
+      setProcessedIds(processData.ids || []);
+
+      return { success: true, ids: processData.ids || [] };
     } catch (error) {
       console.error("Error processing songs:", error);
       throw error;
@@ -54,6 +69,8 @@ export const YoutubeProvider = ({ children }) => {
   const postSongID = async (ids) => {
     setLoading(true);
     try {
+      console.log("Downloading with IDs:", ids);
+
       const response = await fetch(
         "https://musicvault-service-download.onrender.com/api/download",
         {
@@ -66,7 +83,8 @@ export const YoutubeProvider = ({ children }) => {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to generate ZIP file");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to generate ZIP file");
       }
 
       const blob = await response.blob();
@@ -78,6 +96,7 @@ export const YoutubeProvider = ({ children }) => {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+
       return response;
     } catch (error) {
       console.error("Error downloading ZIP file:", error);
@@ -98,8 +117,13 @@ export const YoutubeProvider = ({ children }) => {
           headers: { "Content-Type": "application/json" },
         }
       );
-      if (!response.ok) throw new Error("Failed to check file status");
-      return await response.json(); // Expect { files: [...], totalPages, currentPage, total }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to check file status");
+      }
+
+      return await response.json();
     } catch (error) {
       console.error("Error checking file status:", error);
       throw error;
@@ -110,6 +134,7 @@ export const YoutubeProvider = ({ children }) => {
     <YoutubeContext.Provider
       value={{
         youtubeLinks,
+        processedIds, // Add this to the context
         loading,
         postSongsName,
         postSongID,

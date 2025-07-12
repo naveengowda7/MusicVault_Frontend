@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState } from "react";
 import { extractPlaylist } from "../utils/extractPlaylist";
 
 export const PlaylistContext = createContext();
@@ -13,7 +13,6 @@ export const PlaylistProvider = ({ children }) => {
   const fetchMyPlaylist = async () => {
     setLoading(true);
     setError("");
-
     try {
       const response = await fetch(
         "https://musicvault-service1-playlist.onrender.com/api/playlist/my",
@@ -26,11 +25,20 @@ export const PlaylistProvider = ({ children }) => {
           },
         }
       );
-      if (!response.ok) throw new Error("Failed to fetch My Playlist");
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Not authenticated. Please login first.");
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch My Playlist");
+      }
+
       let data = await response.json();
       data = extractPlaylist(data);
       setMyPlaylist(data);
     } catch (err) {
+      console.error("Error fetching my playlist:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -40,7 +48,6 @@ export const PlaylistProvider = ({ children }) => {
   const fetchOtherPlaylist = async (playlistId) => {
     setLoading(true);
     setError("");
-
     try {
       const response = await fetch(
         `https://musicvault-service1-playlist.onrender.com/api/playlist/${playlistId}`,
@@ -53,10 +60,19 @@ export const PlaylistProvider = ({ children }) => {
           },
         }
       );
-      if (!response.ok) throw new Error("Failed to fetch Other Playlist");
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Not authenticated. Please login first.");
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch Other Playlist");
+      }
+
       let data = await response.json();
       setOtherPlaylist(data);
     } catch (err) {
+      console.error("Error fetching other playlist:", err);
       setError(err.message);
     } finally {
       setLoading(false);

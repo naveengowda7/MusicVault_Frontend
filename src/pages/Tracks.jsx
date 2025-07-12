@@ -13,7 +13,7 @@ const Tracks = () => {
     loading,
     error,
   } = useContext(PlaylistContext);
-  const { postSongsName, postSongID, youtubeLinks, checkFileStatus } =
+  const { postSongsName, postSongID, processedIds, checkFileStatus } =
     useContext(YoutubeContext);
   const { playlistId } = useParams();
   const [selectAll, setSelectAll] = useState(false);
@@ -32,10 +32,12 @@ const Tracks = () => {
   const handleFetchYoutubeLinks = async () => {
     if (songsList.length > 0) {
       try {
-        await postSongsName(songsList);
-        alert("Fetched YouTube IDs! Now click 'Download as ZIP'");
+        const result = await postSongsName(songsList);
+        if (result.success) {
+          alert("Fetched YouTube IDs! Now click 'Download as ZIP'");
+        }
       } catch (error) {
-        alert("Failed to fetch YouTube IDs. Please try again.");
+        alert(`Failed to fetch YouTube IDs: ${error.message}`);
       }
     } else {
       alert("No songs selected to fetch YouTube IDs.");
@@ -43,32 +45,40 @@ const Tracks = () => {
   };
 
   const handleDownloadZip = async () => {
-    if (youtubeLinks.length === 0) {
-      alert("No YouTube IDs available. Fetch them first!");
+    if (processedIds.length === 0) {
+      alert("No processed IDs available. Fetch them first!");
       return;
     }
 
     setDownloading(true);
     try {
+      // Wait a bit for files to be processed
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       const status = await checkFileStatus();
+      console.log("File status:", status);
+
       if (status.files && status.files.length > 0) {
         const availableIds = status.files
-          .filter((file) => youtubeLinks.includes(file._id.toString()))
+          .filter((file) => processedIds.includes(file._id.toString()))
           .map((file) => file._id.toString());
+
         if (availableIds.length === 0) {
-          alert(
-            "Files are still processing. Please try again in a few seconds."
-          );
-          return;
+          // Try using the processedIds directly
+          await postSongID(processedIds);
+          alert("ZIP file download started!");
+        } else {
+          await postSongID(availableIds);
+          alert("ZIP file downloaded successfully!");
         }
-        await postSongID(availableIds);
-        alert("ZIP file downloaded successfully!");
       } else {
-        alert("Files are still processing. Please try again in a few seconds.");
+        // Try using the processedIds directly as fallback
+        await postSongID(processedIds);
+        alert("ZIP file download started!");
       }
     } catch (error) {
       console.error("Error downloading ZIP:", error);
-      alert("Error downloading ZIP. Please try again.");
+      alert(`Error downloading ZIP: ${error.message}`);
     } finally {
       setDownloading(false);
     }
@@ -95,7 +105,7 @@ const Tracks = () => {
         >
           Fetch YouTube IDs
         </button>
-        {youtubeLinks.length > 0 && (
+        {processedIds.length > 0 && (
           <button
             className="download-zip"
             onClick={handleDownloadZip}
@@ -103,6 +113,12 @@ const Tracks = () => {
           >
             {downloading ? "Downloading..." : "Download as ZIP"}
           </button>
+        )}
+      </div>
+      <div>
+        <p>Selected songs: {songsList.length}</p>
+        {processedIds.length > 0 && (
+          <p>Ready to download {processedIds.length} songs!</p>
         )}
       </div>
       {otherPlaylist ? (
