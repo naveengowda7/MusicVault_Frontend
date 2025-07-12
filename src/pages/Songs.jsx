@@ -4,7 +4,7 @@ import { YoutubeContext } from "../context/YoutubeContext";
 const Songs = () => {
   const [inputText, setInputText] = useState("");
   const [downloading, setDownloading] = useState(false);
-  const { postSongsName, youtubeLinks, postSongID } =
+  const { postSongsName, youtubeLinks, postSongID, checkFileStatus } =
     useContext(YoutubeContext);
 
   const handleFetchYoutubeLinks = async () => {
@@ -12,8 +12,12 @@ const Songs = () => {
       alert("Please enter a song name to fetch YouTube IDs.");
       return;
     }
-    await postSongsName([inputText]);
-    alert("Fetched YouTube IDs! Now click 'Download as ZIP'");
+    try {
+      await postSongsName([inputText]);
+      alert("Fetched YouTube IDs! Now click 'Download as ZIP'");
+    } catch (error) {
+      alert("Failed to fetch YouTube IDs. Please try again.");
+    }
   };
 
   const handleDownloadZip = async () => {
@@ -23,23 +27,29 @@ const Songs = () => {
     }
 
     setDownloading(true);
-    alert("Downloading resources, please wait...");
-
-    setTimeout(async () => {
-      try {
-        while (1) {
-          const response = await postSongID(youtubeLinks);
-          if (response?.ok) return;
+    try {
+      const status = await checkFileStatus();
+      if (status.files && status.files.length > 0) {
+        const availableIds = status.files
+          .filter((file) => youtubeLinks.includes(file._id.toString()))
+          .map((file) => file._id.toString());
+        if (availableIds.length === 0) {
+          alert(
+            "Files are still processing. Please try again in a few seconds."
+          );
+          return;
         }
-        alert("Downloading ZIP file...");
-      } catch (error) {
-        console.error("Error downloading ZIP:", error);
-        alert(
-          "Please wait a few more seconds, the backend is still processing your resources."
-        );
+        await postSongID(availableIds);
+        alert("ZIP file downloaded successfully!");
+      } else {
+        alert("Files are still processing. Please try again in a few seconds.");
       }
+    } catch (error) {
+      console.error("Error downloading ZIP:", error);
+      alert("Error downloading ZIP. Please try again.");
+    } finally {
       setDownloading(false);
-    }, 5000);
+    }
   };
 
   return (
@@ -50,11 +60,10 @@ const Songs = () => {
           type="text"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          placeholder="Enter the Song Name"
+          placeholder="Enter Song Name"
           className="input-text-box"
         />
       </div>
-
       <button onClick={handleFetchYoutubeLinks} disabled={downloading}>
         Fetch YouTube IDs
       </button>

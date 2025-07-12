@@ -13,11 +13,9 @@ const Tracks = () => {
     loading,
     error,
   } = useContext(PlaylistContext);
-
-  const { postSongsName, postSongID, youtubeLinks } =
+  const { postSongsName, postSongID, youtubeLinks, checkFileStatus } =
     useContext(YoutubeContext);
   const { playlistId } = useParams();
-
   const [selectAll, setSelectAll] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -33,8 +31,12 @@ const Tracks = () => {
 
   const handleFetchYoutubeLinks = async () => {
     if (songsList.length > 0) {
-      await postSongsName(songsList);
-      alert("Fetched YouTube IDs! Now click 'Download as ZIP'");
+      try {
+        await postSongsName(songsList);
+        alert("Fetched YouTube IDs! Now click 'Download as ZIP'");
+      } catch (error) {
+        alert("Failed to fetch YouTube IDs. Please try again.");
+      }
     } else {
       alert("No songs selected to fetch YouTube IDs.");
     }
@@ -47,23 +49,29 @@ const Tracks = () => {
     }
 
     setDownloading(true);
-    alert("Downloading resources, please wait...");
-
-    setTimeout(async () => {
-      try {
-        while (1) {
-          const response = await postSongID(youtubeLinks);
-          if (response?.status(200)) return;
+    try {
+      const status = await checkFileStatus();
+      if (status.files && status.files.length > 0) {
+        const availableIds = status.files
+          .filter((file) => youtubeLinks.includes(file._id.toString()))
+          .map((file) => file._id.toString());
+        if (availableIds.length === 0) {
+          alert(
+            "Files are still processing. Please try again in a few seconds."
+          );
+          return;
         }
-        alert("Downloading ZIP file...");
-      } catch (error) {
-        console.error("Error downloading ZIP:", error);
-        alert(
-          "Please wait a few more seconds, the backend is still processing your resources."
-        );
+        await postSongID(availableIds);
+        alert("ZIP file downloaded successfully!");
+      } else {
+        alert("Files are still processing. Please try again in a few seconds.");
       }
+    } catch (error) {
+      console.error("Error downloading ZIP:", error);
+      alert("Error downloading ZIP. Please try again.");
+    } finally {
       setDownloading(false);
-    }, 5000);
+    }
   };
 
   useEffect(() => {

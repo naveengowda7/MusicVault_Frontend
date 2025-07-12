@@ -8,7 +8,6 @@ export const YoutubeProvider = ({ children }) => {
 
   const postSongsName = async (songNames) => {
     setLoading(true);
-
     try {
       const response = await fetch(
         "https://musicvault-service1-youtube.onrender.com/api/youtube/video",
@@ -16,30 +15,44 @@ export const YoutubeProvider = ({ children }) => {
           method: "POST",
           mode: "cors",
           credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ songNames }),
         }
       );
 
       if (!response.ok) {
-        throw new Error("Failed to fetch My Playlist");
+        throw new Error("Failed to fetch YouTube IDs");
       }
 
       const data = await response.json();
-      console.log(data);
-      setYoutubeLinks(data.videoUrl);
+      // Assuming YouTube service returns { videoUrl: [...] }, pass to download service
+      const processResponse = await fetch(
+        "https://musicvault-service-download.onrender.com/api/process",
+        {
+          method: "POST",
+          mode: "cors",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ links: data.videoUrl }),
+        }
+      );
+
+      if (!processResponse.ok) {
+        throw new Error("Failed to process YouTube links");
+      }
+
+      const processData = await processResponse.json();
+      setYoutubeLinks(processData.ids || []); // Store MongoDB _ids
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("Error processing songs:", error);
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  const postSongID = async (youtubeLinks) => {
+  const postSongID = async (ids) => {
     setLoading(true);
-
     try {
       const response = await fetch(
         "https://musicvault-service-download.onrender.com/api/download",
@@ -47,10 +60,8 @@ export const YoutubeProvider = ({ children }) => {
           method: "POST",
           mode: "cors",
           credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ ids: youtubeLinks }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
         }
       );
 
@@ -58,24 +69,40 @@ export const YoutubeProvider = ({ children }) => {
         throw new Error("Failed to generate ZIP file");
       }
 
-      // Convert response to blob for direct download
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-
-      // Create a hidden <a> tag to download
       const a = document.createElement("a");
       a.href = url;
       a.download = "songs.zip";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-
-      // Release URL object
       window.URL.revokeObjectURL(url);
+      return response;
     } catch (error) {
       console.error("Error downloading ZIP file:", error);
+      throw error;
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkFileStatus = async () => {
+    try {
+      const response = await fetch(
+        "https://musicvault-service-download.onrender.com/api/files?page=1&limit=10&status=completed",
+        {
+          method: "GET",
+          mode: "cors",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      if (!response.ok) throw new Error("Failed to check file status");
+      return await response.json(); // Expect { files: [...], totalPages, currentPage, total }
+    } catch (error) {
+      console.error("Error checking file status:", error);
+      throw error;
     }
   };
 
@@ -86,6 +113,7 @@ export const YoutubeProvider = ({ children }) => {
         loading,
         postSongsName,
         postSongID,
+        checkFileStatus,
       }}
     >
       {children}
